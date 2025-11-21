@@ -13,7 +13,6 @@ def make_short_request_name(dataset, dtype):
     if dtype == "MC":
         primary = parts[0]
 
-        # Remove extremely long parts
         primary = primary.replace("TuneCP5", "")
         primary = primary.replace("13p6TeV", "")
         primary = primary.replace("pythia8", "")
@@ -21,18 +20,14 @@ def make_short_request_name(dataset, dtype):
         primary = primary.replace("RunIII2024Summer24NanoAODv15", "")
         primary = primary.replace("150X_mcRun3_2024_realistic_v2", "")
 
-        # Keep only significant tokens (up to ~80 chars)
         tokens = primary.split("_")
-        short = "_".join(tokens[:3])  # first 3 tokens only
-
-        # Final safety trim
+        short = "_".join(tokens[:3]) 
         return short[:90]
 
-    else:  # Data
+    else:  
         primary = parts[1]
         secondary = parts[2]
 
-        # Simplify secondary name
         sec = secondary.split("-")[0]
         sec = sec.replace("MINIv6NANOv15", "NANOv15")
         sec = sec.replace("Run", "")
@@ -57,7 +52,7 @@ with open(args.datasetListFile) as f:
     ]
 
 for dataset in datasets:
-    print(f"\n>>> Submitting dataset: {dataset}")
+    print(f"\nSubmitting {dataset}")
     req = make_short_request_name(dataset, args.type)
     config = crabConfig()
     config.General.requestName = req
@@ -86,12 +81,11 @@ for dataset in datasets:
     config.Site.storageSite = "T2_US_Wisconsin"
     config.Site.whitelist = []
 
-
     try:
         crabCommand("submit", config=config)
-        print(f"✔ Submitted: {req}")
+        print(f"Submitted: {req}")
     except Exception as e:
-        print(f"✖ ERROR submitting {dataset}")
+        print(f"ERROR submitting {dataset}")
         print(e)
         continue
 

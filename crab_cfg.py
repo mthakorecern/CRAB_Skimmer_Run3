@@ -46,6 +46,8 @@ for dataset in datasets:
 
         req = f"{primary}_{clean}"  
     
+    ## All of the following settings are discontinued for CRAB3
+    
     # config.section_("General")
     # config.section_("JobType")
     # config.section_("Data")

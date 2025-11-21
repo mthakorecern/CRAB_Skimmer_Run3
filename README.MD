@@ -1,5 +1,5 @@
 # Skimmer using CRAB3
-
+NanoAODTools based Skimmer for Run3 2024 Data+MC that also stores cutflow histograms for all the cuts applied
 ## For data, use:
 
 ```bash crab_submission.sh```

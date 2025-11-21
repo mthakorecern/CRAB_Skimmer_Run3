@@ -50,8 +50,7 @@ class SimpleNanoModule(Module):
 
 
     def beginJob(self):
-        # Python-side counters
-        self.sumGenWeights = 0.0    # only used for MC
+        self.sumGenWeights = 0.0    
         self.cutCounters = [0.0] * len(self.cut_names)
         self.rawEntries = 0
         self.isMC = False
@@ -103,7 +102,7 @@ class SimpleNanoModule(Module):
 
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
-        print("Now filling cutflow histogram bins")
+        print("Skimming is completed. Now filling cutflow histogram bins")
 
         if self.isMC:
             self.cutflow.SetBinContent(1, self.sumGenWeights)
