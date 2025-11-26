@@ -8,7 +8,7 @@ python3 crab_cfg.py \
     -o CRAB_skimmed_2024_data \
     -t Data   \
     -u mithakor \
-    -n 10
+    -n 1
 
 
 

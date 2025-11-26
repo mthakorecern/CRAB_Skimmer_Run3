@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import ROOT
+ROOT.TH1.AddDirectory(False)
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 import math
 
@@ -116,17 +117,24 @@ class SimpleNanoModule(Module):
         else:
             nBins = nCuts + 1   # NoCuts + cuts only
 
+        # Create histogram
         h = ROOT.TH1F("cutflow", "cutflow", nBins, 0, nBins)
-        h.SetDirectory(0)  # <-- CRITICAL FIX so histogram survives ROOT file closing
 
-        # Labels
+        # ❗ Attach histogram to output file BEFORE setting labels
+        h.SetDirectory(outputFile)
+
+        # Now assign bin labels
         if self.isMC:
             h.GetXaxis().SetBinLabel(1, "Sum of GenWeights")
             h.GetXaxis().SetBinLabel(2, "No Cuts")
+            for i, name in enumerate(self.cut_names):
+                h.GetXaxis().SetBinLabel(3+i, name)
         else:
             h.GetXaxis().SetBinLabel(1, "No Cuts")
+            for i, name in enumerate(self.cut_names):
+                h.GetXaxis().SetBinLabel(2+i, name)
 
-        # Fill bins
+        # Fill the cutflow
         if self.isMC:
             h.SetBinContent(1, self.file_genWeightSum)
             h.SetBinContent(2, self.file_raw_events)
@@ -137,6 +145,7 @@ class SimpleNanoModule(Module):
             for i, v in enumerate(self.file_cutCounts):
                 h.SetBinContent(2+i, v)
 
+        # Write
         outputFile.cd()
         h.Write()
         print("[endFile] Per-file cutflow written.")
@@ -166,7 +175,7 @@ p = PostProcessor(".",
                   provenance=True,
                   fwkJobReport=True,
                   postfix="",
-                  haddFileName="tree.root",
+                  haddFileName=None,
                   jsonInput=runsAndLumis())
 p.run()
 

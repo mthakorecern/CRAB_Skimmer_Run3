@@ -8,7 +8,7 @@ python3 crab_cfg_sequential.py \
     -o CRAB_skimmed_2024_MC \
     -t MC   \
     -u mithakor \
-    -n 10
+    -n 1
 
 
 
