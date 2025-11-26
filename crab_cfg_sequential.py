@@ -64,8 +64,8 @@ for dataset in datasets:
     config.JobType.psetName = 'PSet.py'
     config.JobType.scriptExe = 'crab_script.sh'
     config.JobType.inputFiles = ['crab_script.py', 'haddnano.py']
-    config.JobType.maxMemoryMB = 2500
-    config.JobType.maxJobRuntimeMin = 1400
+    config.JobType.maxMemoryMB = 2000
+    config.JobType.maxJobRuntimeMin = 500
     config.JobType.disableAutomaticOutputCollection = True
     config.JobType.outputFiles = ['tree.root']
 

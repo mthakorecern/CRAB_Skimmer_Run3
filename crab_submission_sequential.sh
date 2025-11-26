@@ -5,10 +5,10 @@
 python3 crab_cfg_sequential.py \
     -f datasets_MC.txt \
     -w MC \
-    -o CRAB_skimmed_2024_data \
+    -o CRAB_skimmed_2024_MC \
     -t MC   \
     -u mithakor \
-    -n 1
+    -n 10
 
 
 

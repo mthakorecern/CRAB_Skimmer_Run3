@@ -4,11 +4,11 @@
 
 python3 crab_cfg.py \
     -f datasets.txt \
-    -w JetMET \
+    -w JetMET0 \
     -o CRAB_skimmed_2024_data \
     -t Data   \
     -u mithakor \
-    -n 1
+    -n 5
 
 
 
