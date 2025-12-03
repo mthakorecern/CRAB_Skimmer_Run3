@@ -8,32 +8,43 @@ from CRABAPI.RawCommand import crabCommand
 
 
 def make_short_request_name(dataset, dtype):
+    """
+    dataset: full DAS dataset string, e.g.
+      /JetMET0/Run2024C-MINIv6NANOv15-v1/NANOAOD
+      /TTtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8/RunIII2024.../NANOAODSIM
+
+    dtype: "Data" or "MC"
+    """
+
     parts = dataset.strip("/").split("/")
+    # Expected:
+    # parts[0] = primary dataset
+    # parts[1] = processing string (Run2024C-MINIv6NANOv15-v1)
+    # parts[2] = datatier (NANOAOD or NANOAODSIM)
+
+    primary = parts[0]
+    procstr = parts[1]
+    tier    = parts[2]
 
     if dtype == "MC":
-        primary = parts[0]
+        # For MC you want ONLY:
+        #   TTtoLNu2Q_TuneCP5_13p6TeV_powheg-pythia8
+        #
+        # That is exactly parts[0]
+        return primary[:90]
 
-        primary = primary.replace("TuneCP5", "")
-        primary = primary.replace("13p6TeV", "")
-        primary = primary.replace("pythia8", "")
-        primary = primary.replace("amcatnloFXFX", "")
-        primary = primary.replace("RunIII2024Summer24NanoAODv15", "")
-        primary = primary.replace("150X_mcRun3_2024_realistic_v2", "")
-
-        tokens = primary.split("_")
-        short = "_".join(tokens[:3]) 
-        return short[:90]
-
-    else:  
-        primary = parts[1]
-        secondary = parts[2]
-
-        sec = secondary.split("-")[0]
-        sec = sec.replace("MINIv6NANOv15", "NANOv15")
-        sec = sec.replace("Run", "")
-
-        short = f"{primary}_{sec}"
-        return short[:90]
+    else:
+        # DATA CASE
+        #
+        # Desired:
+        #   JetMET0_Run2024C-MINIv6NANOv15-v1_NANOAOD
+        #
+        # Special rule: preserve processing string EXACTLY as-is,
+        # including odd patterns like MINIv6NANOv15_v2-v1.
+        #
+        # Keep the tier unchanged.
+        #
+        return f"{primary}_{procstr}_{tier}"[:90]
 
 parser = argparse.ArgumentParser(description='Generate CRAB configuration')
 

@@ -18,6 +18,7 @@ class SimpleNanoModule(Module):
         self.cut_functions = [
             lambda ev: ev.nFatJet > 0,
             lambda ev: ev.PuppiMET_pt >= 120,
+            # lambda ev: ev.PuppiMET_pt > 80,
             lambda ev: ev.Flag_goodVertices == 1,
             lambda ev: ev.Flag_globalSuperTightHalo2016Filter == 1,
             lambda ev: ev.Flag_EcalDeadCellTriggerPrimitiveFilter == 1,
@@ -26,10 +27,8 @@ class SimpleNanoModule(Module):
             lambda ev: ev.Flag_hfNoisyHitsFilter == 1,
             lambda ev: ev.Flag_eeBadScFilter == 1,
             lambda ev: ev.Flag_ecalBadCalibFilter == 1,
-            lambda ev: (ev.PV_ndof > 4)
-                       and abs(ev.PV_z) < 24
-                       and math.sqrt(ev.PV_x * ev.PV_x + ev.PV_y * ev.PV_y) < 2,
-            lambda ev: (ev.nTau > 0) or (getattr(ev, "nboostedTau", 0) > 0),
+            lambda ev: (ev.PV_ndof > 4) and abs(ev.PV_z) < 24 and math.sqrt(ev.PV_x*ev.PV_x + ev.PV_y*ev.PV_y) < 2,
+            lambda ev: (ev.nTau > 0) or (ev.nboostedTau > 0),
         ]
 
         self.cut_names = [
@@ -47,122 +46,148 @@ class SimpleNanoModule(Module):
             "Tau requirement",
         ]
 
+        self.isMC = None
+
 
     def beginJob(self):
-        self.global_raw_events   = 0        
-        self.global_genWeightSum = 0.0     
-        self.global_cutCounts    = [0] * len(self.cut_names)
-    
-        self.file_raw_events   = 0
-        self.file_genWeightSum = 0.0
-        self.file_cutCounts    = [0] * len(self.cut_names)
+        pass
 
-
-        self.isMC = None
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
 
         branches = [b.GetName() for b in inputTree.GetListOfBranches()]
-        if self.isMC is None:
-            self.isMC = ("genWeight" in branches)
+        self.isMC = ("genWeight" in branches)
+        
+        ## Total Event entries
+        self.file_raw_events = inputTree.GetEntries()
+        self.file_cutCounts = [0] * len(self.cut_names)
+        
+        ## Collecting sumofGenWeights event by event as well as from the Runs Tree
+        self.file_eventGenWeightSum = 0.0
+        self.file_runsGenWeightSum  = 0.0
 
-        events = inputTree.GetEntries()
+        ## Turns out NanoAODTools goes through all the events and may get rid of events which might be corrupted
+        self.file_corrupt_events = 0
+        self.file_corrupt_reasons = {}
 
-        # Reset per-file counters
-        self.file_raw_events   = events
-        self.file_genWeightSum = 0.0
-        self.file_cutCounts    = [0] * len(self.cut_names)
+        if self.isMC:
+            runsTree = inputFile.Get("Runs")
+            if runsTree:
+                for r in runsTree:
+                    if hasattr(r, "genEventSumw"):
+                        self.file_runsGenWeightSum += r.genEventSumw
 
-        # Update global count of raw events (unweighted)
-        self.global_raw_events += events
+        print(f"\n Processing {inputFile.GetName()}")
+        print(f"Raw events in file: {self.file_raw_events}")
+        if self.isMC:
+            print(f"RunsTree genEventSumw: {self.file_runsGenWeightSum}")
 
-        print(f"\n[beginFile] File: {inputFile.GetName()}")
-        print(f"Raw events: {events}")
-        print(f"Accumulated raw events: {self.global_raw_events}")
+
+    def _markCorrupt(self, reason):
+        self.file_corrupt_events += 1
+        self.file_corrupt_reasons[reason] = (self.file_corrupt_reasons.get(reason, 0) + 1)
+
 
     def analyze(self, event):
-        w = 1.0
 
         if self.isMC:
             try:
                 gw = float(event.genWeight)
-            except:
-                gw = 1.0
-            self.file_genWeightSum   += gw
-            self.global_genWeightSum += gw
+                self.file_eventGenWeightSum += gw
+            except Exception:
+                self._markCorrupt("Missing genWeight")
+                return False
 
-        for i, cut in enumerate(self.cut_functions):
-            if not cut(event):
-                return False  # event fails here
-
-            self.global_cutCounts[i] += 1
-            self.file_cutCounts[i]   += 1
+        try:
+            for i, cut in enumerate(self.cut_functions):
+                if not cut(event):
+                    return False
+                self.file_cutCounts[i] += 1
+        except Exception as err:
+            self._markCorrupt(str(err))
+            return False
 
         return True
 
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
-        print(f"[endFile] {inputFile.GetName()}")
+
+        print(f"\n Finalizing {inputFile.GetName()}")
+        print(f"Corrupt events in this file: {self.file_corrupt_events}")
+        if self.file_corrupt_reasons:
+            print("Corrupt for Reasons:")
+            for r, n in self.file_corrupt_reasons.items():
+                print(f"{n} x {r}")
 
         if outputFile is None:
             return
 
-        print("[endFile] Writing per-file cutflow histogram...")
-
         nCuts = len(self.cut_names)
 
-        # Histogram ranges
         if self.isMC:
-            nBins = nCuts + 2   # SumGenW + NoCuts + cuts
-        else:
-            nBins = nCuts + 1   # NoCuts + cuts only
+            nBins = nCuts + 4
+            h = ROOT.TH1F("cutflow", "cutflow", nBins, 0, nBins)
+            h.SetDirectory(outputFile)
 
-        # Create histogram
-        h = ROOT.TH1F("cutflow", "cutflow", nBins, 0, nBins)
+            h.GetXaxis().SetBinLabel(1, "Event-level sum of genWeight")
+            h.GetXaxis().SetBinLabel(2, "RunsTree genEventSumw")
+            h.GetXaxis().SetBinLabel(3, "No Cuts")
 
-        # ❗ Attach histogram to output file BEFORE setting labels
-        h.SetDirectory(outputFile)
-
-        # Now assign bin labels
-        if self.isMC:
-            h.GetXaxis().SetBinLabel(1, "Sum of GenWeights")
-            h.GetXaxis().SetBinLabel(2, "No Cuts")
             for i, name in enumerate(self.cut_names):
-                h.GetXaxis().SetBinLabel(3+i, name)
+                h.GetXaxis().SetBinLabel(4+i, name)
+
+            corrupt_bin = nCuts + 4
+            h.GetXaxis().SetBinLabel(corrupt_bin, "Corrupt Events")
+
+            h.SetBinContent(1, self.file_eventGenWeightSum)
+            h.SetBinContent(2, self.file_runsGenWeightSum)
+            h.SetBinContent(3, self.file_raw_events)
+
+            for i, v in enumerate(self.file_cutCounts):
+                h.SetBinContent(4+i, v)
+
+            h.SetBinContent(corrupt_bin, self.file_corrupt_events)
+
         else:
+            nBins = nCuts + 2
+            h = ROOT.TH1F("cutflow", "cutflow", nBins, 0, nBins)
+            h.SetDirectory(outputFile)
+
             h.GetXaxis().SetBinLabel(1, "No Cuts")
             for i, name in enumerate(self.cut_names):
                 h.GetXaxis().SetBinLabel(2+i, name)
 
-        # Fill the cutflow
-        if self.isMC:
-            h.SetBinContent(1, self.file_genWeightSum)
-            h.SetBinContent(2, self.file_raw_events)
-            for i, v in enumerate(self.file_cutCounts):
-                h.SetBinContent(3+i, v)
-        else:
+            corrupt_bin = nCuts + 2
+            h.GetXaxis().SetBinLabel(corrupt_bin, "Corrupt Events")
+
             h.SetBinContent(1, self.file_raw_events)
             for i, v in enumerate(self.file_cutCounts):
                 h.SetBinContent(2+i, v)
+            h.SetBinContent(corrupt_bin, self.file_corrupt_events)
 
-        # Write
         outputFile.cd()
         h.Write()
-        print("[endFile] Per-file cutflow written.")
+        print("cutflow written.")
 
 
     def endJob(self):
-        print("\n================ GLOBAL SUMMARY ================")
+        print("\n cutflow information")
 
         if self.isMC:
-            print(f"Total raw events     : {self.global_raw_events}")
-            print(f"Sum of genWeights    : {self.global_genWeightSum:.4f}")
-        else:
-            print(f"Total raw events     : {self.global_raw_events}")
+            print(f"Event-Level Sum of genWeights : {self.file_eventGenWeightSum}")
+            print(f"RunsTree genEventSumw       : {self.file_runsGenWeightSum}")
 
+        print(f"Corrupt events in file      : {self.file_corrupt_events}")
+        if self.file_corrupt_reasons:
+            print("Corrupt event reasons:")
+            for r, n in self.file_corrupt_reasons.items():
+                print(f"  {n} x {r}")
+        
+        print(f"Raw events in file          : {self.file_raw_events}")
+        
         print("\nEvents passing each cut:")
         for i, name in enumerate(self.cut_names):
-            print(f"  Cut {i+1:02d} ({name}): {self.global_cutCounts[i]}")
+            print(f"  {name}: {self.file_cutCounts[i]}")
 
         pass
 
@@ -175,8 +200,8 @@ p = PostProcessor(".",
                   provenance=True,
                   fwkJobReport=True,
                   postfix="",
-                  haddFileName=None,
-                  jsonInput=runsAndLumis())
+                  haddFileName=None)
+                  #jsonInput=runsAndLumis())
 p.run()
 
 print("DONE")
