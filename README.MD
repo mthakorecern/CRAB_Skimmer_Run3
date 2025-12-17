@@ -37,7 +37,7 @@ python3 crab_cfg.py \
     -u mithakor \
     -n 1
 ```
-The output will be stored in your hdfs area under the CRAB_skimmed_2024_data directory. 
+The output will be stored in your hdfs area under the ```CRAB_skimmed_2024_data``` directory. 
 
 
 The Skimmer code has several scripts out of which the main ones are:
@@ -48,6 +48,6 @@ The Skimmer code has several scripts out of which the main ones are:
 
 ```Datasets.txt```: This file should be populated with dataset names with only one dataset name uncommented.
  
-```haddnano.py```: This file is required for running NanoAOD Tools on CRAB nodes. Can be ignored
+```haddnano.py```: This file is required for running NanoAOD Tools on CRAB nodes. Can be ignored.
 
-```crab_cfg.py```: This file is the important code used for configuring CRAB jobs and submitting them. It’s already configured to submit one dataset at a time and store the output in T2_US_Wisconsin HDFS Area
+```crab_cfg.py```: This file is the important code used for configuring CRAB jobs and submitting them. It’s already configured to submit one dataset at a time and store the output in T2_US_Wisconsin HDFS Area.
