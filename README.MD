@@ -22,7 +22,7 @@ git clone https://github.com/mthakorecern/CRAB_Skimmer_Run3.git
 cd CRAB_Skimmer_Run3
 git switch fixedcutflow
 ```
-Enter the name of a dataset in the datasets.txt file. Only one dataset name should be there in the file at all time. All other names should precede with a pound(#) sign.
+Enter the name of a dataset in the ```datasets.txt``` file. Only one dataset name should be there in the file at all time. All other names should precede with a pound(#) sign.
 
 For eg: ```/JetMET0/Run2024C-MINIv6NANOv15-v1/NANOAOD```
 
